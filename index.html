@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Student Performance Tracker & Analytics</title>
+  <meta name="description" content="Responsive student tracking, communication logs, teacher class intelligence, and consolidated PDF reporting.">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- jsPDF for direct client-side PDF generation on GitHub Pages & offline fallback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              800: '#075985',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Clean custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    /* Touch friendly minimum heights */
+    .touch-btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+
+    /* Hide scrollbars for clean tab navigation */
+    .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans text-slate-800 antialiased selection:bg-brand-500 selection:text-white pb-16 md:pb-0">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4"></div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs shrink-0">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        
+        <!-- Logo / Brand -->
+        <div class="flex items-center gap-2.5 sm:gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-700 to-sky-500 flex items-center justify-center text-white shadow-sm shrink-0">
+            <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-tight">Student Tracker & Analytics</h1>
+            <p class="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+              <span id="runtime-mode-badge" class="inline-flex items-center gap-1 text-emerald-600 font-semibold">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="runtime-mode-text">Connected</span>
+              </span>
+              <span>•</span>
+              <span class="text-slate-500">GitHub Pages Ready</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Action / Portability Tools -->
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button onclick="openDataToolsModal()" title="Data Backup, Restore, and GitHub Pages Tools" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition">
+            <i data-lucide="database" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">Data & Sync</span>
+          </button>
+          <button onclick="downloadSampleCsv()" title="Download sample CSV template" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span class="hidden sm:inline">Sample CSV</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tablet & Desktop Horizontal Tab Bar -->
+  <div class="hidden md:block sticky top-16 z-20 bg-white border-b border-slate-200 shadow-2xs shrink-0">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <nav class="flex items-center space-x-2 py-2.5 overflow-x-auto overflow-y-hidden no-scrollbar text-xs font-semibold">
+        <button onclick="switchTab('dashboard')" id="mid-nav-dashboard" class="px-3.5 py-2 rounded-lg bg-sky-600 text-white flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-all shadow-2xs">
+          <i data-lucide="layout-dashboard" class="w-4 h-4 shrink-0"></i> Overview
+        </button>
+        <button onclick="switchTab('students')" id="mid-nav-students" class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-all">
+          <i data-lucide="users" class="w-4 h-4 shrink-0"></i> Students & Calls
+        </button>
+        <button onclick="switchTab('exams')" id="mid-nav-exams" class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-all">
+          <i data-lucide="file-check" class="w-4 h-4 shrink-0"></i> Exam Marks
+        </button>
+        <button onclick="switchTab('attendance')" id="mid-nav-attendance" class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-all">
+          <i data-lucide="calendar-check" class="w-4 h-4 shrink-0"></i> Attendance
+        </button>
+        <button onclick="switchTab('teacher-hub')" id="mid-nav-teacher-hub" class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-all">
+          <i data-lucide="line-chart" class="w-4 h-4 shrink-0"></i> Teacher's Hub
+        </button>
+        <button onclick="switchTab('analytics')" id="mid-nav-analytics" class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-all">
+          <i data-lucide="file-text" class="w-4 h-4 shrink-0"></i> PDF Reports
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Tab Bar (Mobile First Navigation) -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-1 py-1.5 flex justify-around items-center text-[10px] font-semibold text-slate-600 shadow-lg">
+    <button onclick="switchTab('dashboard')" id="mob-nav-dashboard" class="flex flex-col items-center py-1 px-2 rounded-lg text-slate-600 hover:text-sky-600 transition">
+      <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i>
+      <span>Overview</span>
+    </button>
+    <button onclick="switchTab('students')" id="mob-nav-students" class="flex flex-col items-center py-1 px-2 rounded-lg text-slate-600 hover:text-sky-600 transition">
+      <i data-lucide="users" class="w-5 h-5 mb-0.5"></i>
+      <span>Students</span>
+    </button>
+    <button onclick="switchTab('exams')" id="mob-nav-exams" class="flex flex-col items-center py-1 px-2 rounded-lg text-slate-600 hover:text-sky-600 transition">
+      <i data-lucide="file-check" class="w-5 h-5 mb-0.5"></i>
+      <span>Marks</span>
+    </button>
+    <button onclick="switchTab('attendance')" id="mob-nav-attendance" class="flex flex-col items-center py-1 px-2 rounded-lg text-slate-600 hover:text-sky-600 transition">
+      <i data-lucide="calendar-check" class="w-5 h-5 mb-0.5"></i>
+      <span>Attend</span>
+    </button>
+    <button onclick="switchTab('teacher-hub')" id="mob-nav-teacher-hub" class="flex flex-col items-center py-1 px-2 rounded-lg text-slate-600 hover:text-sky-600 transition">
+      <i data-lucide="line-chart" class="w-5 h-5 mb-0.5"></i>
+      <span>Class Hub</span>
+    </button>
+    <button onclick="switchTab('analytics')" id="mob-nav-analytics" class="flex flex-col items-center py-1 px-2 rounded-lg text-slate-600 hover:text-sky-600 transition">
+      <i data-lucide="file-text" class="w-5 h-5 mb-0.5"></i>
+      <span>Reports</span>
+    </button>
+  </nav>
+
+  <!-- Main Content Viewport -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: DASHBOARD OVERVIEW -->
+    <!-- ===================================================================== -->
+    <div id="tab-dashboard" class="tab-content space-y-6">
+      
+      <!-- Welcome & Quick Call Status Banner -->
+      <div class="bg-gradient-to-r from-brand-700 via-sky-700 to-blue-800 rounded-2xl p-4 sm:p-6 text-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <span class="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-semibold tracking-wide uppercase">Teacher Workspace</span>
+          <h2 class="text-xl sm:text-2xl font-bold tracking-tight mt-1.5">Academic Progress & Family Engagement Hub</h2>
+          <p class="text-xs sm:text-sm text-sky-100 mt-1 max-w-2xl leading-relaxed">
+            Monitor student performance, contact parents and students directly via one-click phone dialer, log call outcomes, and generate consolidated diagnostic PDF reports.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+          <button onclick="switchTab('teacher-hub')" class="touch-btn text-xs font-semibold px-4 py-2 rounded-xl bg-white text-brand-700 hover:bg-sky-50 shadow-sm transition gap-1.5">
+            <i data-lucide="line-chart" class="w-4 h-4"></i> View Class Intelligence
+          </button>
+          <button onclick="switchTab('students')" class="touch-btn text-xs font-semibold px-4 py-2 rounded-xl bg-sky-500/30 hover:bg-sky-500/40 text-white border border-white/20 transition gap-1.5">
+            <i data-lucide="phone" class="w-4 h-4"></i> Call Records
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Grid -->
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500 text-xs font-medium">Total Students</span>
+            <div class="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+              <i data-lucide="users" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="stat-total-students" class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">--</div>
+          <span class="text-[11px] text-slate-400">Enrolled cohort</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500 text-xs font-medium">Examinations</span>
+            <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <i data-lucide="file-check" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="stat-total-exams" class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">--</div>
+          <span class="text-[11px] text-slate-400">Assessments tracked</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500 text-xs font-medium">Avg Attendance</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <i data-lucide="calendar" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="stat-overall-att" class="text-xl sm:text-2xl font-bold text-emerald-600 mt-2">--%</div>
+          <span id="stat-att-sub" class="text-[11px] text-slate-400">Class sessions</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500 text-xs font-medium">Exam Average</span>
+            <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <i data-lucide="award" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="stat-overall-exam" class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">--%</div>
+          <span class="text-[11px] text-slate-400">Overall average score</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs col-span-2 lg:col-span-1">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-500 text-xs font-medium">Call Records</span>
+            <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+              <i data-lucide="phone-call" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="stat-total-calls" class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">--</div>
+          <span id="stat-calls-sub" class="text-[11px] text-slate-400">-- to parents, -- to students</span>
+        </div>
+      </div>
+
+      <!-- Quick Actions Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+          <div class="flex items-center gap-2 text-sky-700 font-bold text-sm">
+            <i data-lucide="phone" class="w-4 h-4"></i> Direct Student & Parent Calling
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Click any phone icon next to a student or guardian to launch immediate calling, and log call summaries, dates, subjects, and outcomes.
+          </p>
+          <button onclick="switchTab('students')" class="touch-btn text-xs font-semibold px-4 py-2 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg transition w-full">
+            Open Student Directory & Phone Logs →
+          </button>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+          <div class="flex items-center gap-2 text-emerald-700 font-bold text-sm">
+            <i data-lucide="line-chart" class="w-4 h-4"></i> Class Performance Intelligence
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Analyze entire classes, sections, or individual exams. View grade distribution curves, median scores, standard deviations, and AI recommendations.
+          </p>
+          <button onclick="switchTab('teacher-hub')" class="touch-btn text-xs font-semibold px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition w-full">
+            Explore Teacher's Analytics Hub →
+          </button>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+          <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm">
+            <i data-lucide="files" class="w-4 h-4"></i> Multi-Student Consolidated PDF
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Filter by section, search students, and select multiple students to download a single combined PDF dossier with fixed line spacing.
+          </p>
+          <button onclick="switchTab('analytics')" class="touch-btn text-xs font-semibold px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition w-full">
+            Select & Generate Dossiers →
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 2: STUDENTS, PHONE CONTACTS & CALL LOGGING -->
+    <!-- ===================================================================== -->
+    <div id="tab-students" class="tab-content hidden space-y-6">
+      
+      <!-- Top Actions Bar -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Student Directory & Contact Communication</h2>
+          <p class="text-xs text-slate-500">Student & parent phone numbers, direct dialer buttons, and call records</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <button onclick="openNewStudentModal()" class="touch-btn text-xs font-semibold px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition shadow-2xs flex items-center gap-1.5">
+            <i data-lucide="user-plus" class="w-4 h-4"></i> Add Student
+          </button>
+          <button onclick="openCallHistoryModal()" class="touch-btn text-xs font-semibold px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition flex items-center gap-1.5">
+            <i data-lucide="phone-call" class="w-4 h-4"></i> All Call Records
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-2xs space-y-3">
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+          <div class="relative w-full sm:flex-1">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="students-search-input" oninput="filterStudentsTableLocal()" placeholder="Search student by name, roll no, or phone..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-medium">
+          </div>
+
+          <div class="w-full sm:w-48">
+            <select id="students-section-filter" onchange="loadStudents()" class="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg outline-none font-medium text-slate-700 bg-slate-50">
+              <option value="All">All Sections</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Student Roster Table (Mobile Responsive) -->
+        <div class="overflow-x-auto rounded-lg border border-slate-100">
+          <table class="w-full text-left text-xs min-w-[720px]">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px]">
+              <tr>
+                <th class="py-3 px-3">Roll No</th>
+                <th class="py-3 px-3">Student Name</th>
+                <th class="py-3 px-3">Student Phone</th>
+                <th class="py-3 px-3">Parent / Guardian Phone</th>
+                <th class="py-3 px-2 text-center">Section</th>
+                <th class="py-3 px-2 text-center">Calls</th>
+                <th class="py-3 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="students-table-body" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="7" class="py-8 text-center text-slate-400">Loading student directory...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CSV Ingestion Dropzone Card -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-2xs space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 text-slate-900 font-bold text-sm">
+            <i data-lucide="upload-cloud" class="w-5 h-5 text-sky-600"></i> Bulk Student CSV Ingestion
+          </div>
+          <button onclick="downloadSampleCsv()" class="text-xs font-semibold text-sky-600 hover:text-sky-700 underline flex items-center gap-1">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Download CSV Template
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-500">
+          Upload a <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono">.csv</code> file containing columns: <span class="font-semibold text-slate-700">roll_no, name, student_phone, parent_name, parent_phone, section</span>.
+        </p>
+
+        <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-sky-500 hover:bg-sky-50/40 transition cursor-pointer">
+          <input type="file" id="file-input" accept=".csv" class="hidden">
+          <div class="flex flex-col items-center">
+            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mb-2">
+              <i data-lucide="file-up" class="w-6 h-6"></i>
+            </div>
+            <p class="text-xs font-bold text-slate-800">Tap to select or drag & drop CSV file</p>
+            <p id="file-chosen-text" class="text-[11px] text-slate-400 mt-1">Accepts UTF-8 formatted CSV files</p>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <button id="btn-upload" onclick="uploadStudentFile()" class="touch-btn text-xs font-semibold px-5 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white transition shadow-2xs flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i> Upload & Import Students
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 3: EXAM MARKS MATRIX -->
+    <!-- ===================================================================== -->
+    <div id="tab-exams" class="tab-content hidden space-y-6">
+      
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Examination Score Log & Matrix</h2>
+          <p class="text-xs text-slate-500">Enter and validate assessment scores for students</p>
+        </div>
+        <button onclick="openNewExamModal()" class="touch-btn text-xs font-semibold px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg transition shadow-2xs flex items-center gap-1.5">
+          <i data-lucide="plus" class="w-4 h-4"></i> Create New Exam
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-4">
+        <!-- Exam & Section Selectors -->
+        <div class="flex flex-col sm:flex-row gap-3">
+          <div class="w-full sm:w-1/2">
+            <label class="block text-[11px] font-semibold text-slate-500 uppercase">Selected Exam</label>
+            <select id="marks-exam-select" onchange="loadMarksMatrix()" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none font-semibold text-slate-800 bg-slate-50">
+              <option value="">-- Choose Exam --</option>
+            </select>
+          </div>
+          <div class="w-full sm:w-1/2">
+            <label class="block text-[11px] font-semibold text-slate-500 uppercase">Section Filter</label>
+            <select id="marks-section-select" onchange="loadMarksMatrix()" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none font-semibold text-slate-800 bg-slate-50">
+              <option value="All">All Sections</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="marks-matrix-header-info" class="p-3 bg-sky-50 rounded-lg border border-sky-100 flex justify-between items-center text-xs text-sky-900">
+          <div>
+            <span class="font-bold" id="matrix-exam-name">Exam Details</span>
+            <span class="text-sky-700 ml-2" id="matrix-exam-meta">Total: 100 Marks</span>
+          </div>
+          <span class="text-[11px] bg-white px-2 py-0.5 rounded text-sky-800 font-mono font-semibold" id="matrix-exam-date">Date</span>
+        </div>
+
+        <!-- Marks Matrix Table -->
+        <div class="overflow-x-auto rounded-lg border border-slate-100">
+          <table class="w-full text-left text-xs min-w-[550px]">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px]">
+              <tr>
+                <th class="py-3 px-4">Roll No</th>
+                <th class="py-3 px-4">Student Name</th>
+                <th class="py-3 px-4">Section</th>
+                <th class="py-3 px-4 w-44">Marks Obtained</th>
+                <th class="py-3 px-4 text-center">Score %</th>
+              </tr>
+            </thead>
+            <tbody id="marks-matrix-body" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="5" class="py-8 text-center text-slate-400">Select an exam to log student marks.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button id="btn-save-marks" onclick="saveMarksMatrix()" class="touch-btn text-xs font-semibold px-6 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white transition shadow-2xs flex items-center gap-1.5">
+            <i data-lucide="save" class="w-4 h-4"></i> Save Marks
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 4: ATTENDANCE TRACKER -->
+    <!-- ===================================================================== -->
+    <div id="tab-attendance" class="tab-content hidden space-y-6">
+      
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Classroom Attendance Session Tracker</h2>
+          <p class="text-xs text-slate-500">Record daily attendance rosters and identify chronic absences</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="markAllAttendance(true)" class="touch-btn text-xs font-semibold px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition flex items-center gap-1">
+            <i data-lucide="check-check" class="w-3.5 h-3.5"></i> Mark All Present
+          </button>
+          <button onclick="markAllAttendance(false)" class="touch-btn text-xs font-semibold px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-lg transition flex items-center gap-1">
+            <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Mark All Absent
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-4">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <div class="w-full sm:w-1/2">
+            <label class="block text-[11px] font-semibold text-slate-500 uppercase">Session Date</label>
+            <input type="date" id="att-date-picker" onchange="loadAttendanceRoster()" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium">
+          </div>
+          <div class="w-full sm:w-1/2">
+            <label class="block text-[11px] font-semibold text-slate-500 uppercase">Section</label>
+            <select id="att-section-select" onchange="loadAttendanceRoster()" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium bg-slate-50">
+              <option value="All">All Sections</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-slate-100">
+          <table class="w-full text-left text-xs min-w-[550px]">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px]">
+              <tr>
+                <th class="py-3 px-4">Roll No</th>
+                <th class="py-3 px-4">Student Name</th>
+                <th class="py-3 px-4">Contact Phone</th>
+                <th class="py-3 px-4">Section</th>
+                <th class="py-3 px-4 text-center w-36">Status</th>
+              </tr>
+            </thead>
+            <tbody id="att-roster-body" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="5" class="py-8 text-center text-slate-400">Loading student attendance roster...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button id="btn-save-att" onclick="saveAttendanceRoster()" class="touch-btn text-xs font-semibold px-6 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white transition shadow-2xs flex items-center gap-1.5">
+            <i data-lucide="save" class="w-4 h-4"></i> Save Attendance
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 5: TEACHER'S HUB (CLASS & SESSION INTELLIGENCE) -->
+    <!-- ===================================================================== -->
+    <div id="tab-teacher-hub" class="tab-content hidden space-y-6">
+      
+      <!-- Hub Filter Control Header -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="p-1 rounded-md bg-brand-50 text-brand-600"><i data-lucide="line-chart" class="w-5 h-5"></i></span>
+            <h2 class="text-base font-bold text-slate-900">Teacher's Class & Session Intelligence</h2>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">Cohort statistical metrics, score distribution curves, at-risk flags, and classroom AI advisory</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Class / Section</label>
+            <select id="teacher-section-select" onchange="loadTeacherAnalytics()" class="text-xs px-3 py-1.5 border border-slate-300 rounded-lg outline-none font-semibold text-slate-800 bg-slate-50">
+              <option value="All">All Classes & Sections</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Exam Scope</label>
+            <select id="teacher-exam-select" onchange="loadTeacherAnalytics()" class="text-xs px-3 py-1.5 border border-slate-300 rounded-lg outline-none font-semibold text-slate-800 bg-slate-50 min-w-[200px]">
+              <option value="all">Overall Session (All Exams Combined)</option>
+            </select>
+          </div>
+          <div class="pt-3.5">
+            <button onclick="loadTeacherAnalytics()" class="touch-btn text-xs font-semibold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cohort Statistical KPI Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <span class="text-slate-500 text-[11px] font-semibold uppercase">Class Average</span>
+          <div id="cohort-avg" class="text-xl sm:text-2xl font-bold text-sky-700 mt-1">--%</div>
+          <span id="cohort-avg-sub" class="text-[10px] text-slate-400">Cohort mean</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <span class="text-slate-500 text-[11px] font-semibold uppercase">Class Median</span>
+          <div id="cohort-median" class="text-xl sm:text-2xl font-bold text-slate-800 mt-1">--%</div>
+          <span class="text-[10px] text-slate-400">Middle score</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <span class="text-slate-500 text-[11px] font-semibold uppercase">Score Spread</span>
+          <div id="cohort-range" class="text-base sm:text-lg font-bold text-slate-800 mt-1">--</div>
+          <span id="cohort-stddev" class="text-[10px] text-slate-400">Std Dev: --</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <span class="text-slate-500 text-[11px] font-semibold uppercase">Class Attendance</span>
+          <div id="cohort-att" class="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">--%</div>
+          <span class="text-[10px] text-slate-400">Session presence</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <span class="text-slate-500 text-[11px] font-semibold uppercase">Chronic Absentee</span>
+          <div id="cohort-chronic" class="text-xl sm:text-2xl font-bold text-rose-600 mt-1">--</div>
+          <span class="text-[10px] text-slate-400">&lt; 75% attendance</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+          <span class="text-slate-500 text-[11px] font-semibold uppercase">Cohort Size</span>
+          <div id="cohort-count" class="text-xl sm:text-2xl font-bold text-slate-800 mt-1">--</div>
+          <span class="text-[10px] text-slate-400">Active students</span>
+        </div>
+      </div>
+
+      <!-- Grade Mastery Distribution & Trends -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Mastery Distribution Card -->
+        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-5 shadow-2xs space-y-4">
+          <div class="flex justify-between items-center">
+            <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 text-sky-600"></i> Grade Band & Mastery Distribution
+            </h3>
+            <span class="text-[11px] text-slate-500 font-medium">Academic Standards Breakdown</span>
+          </div>
+
+          <!-- Visual Distribution Stacked Bar -->
+          <div class="w-full h-4 bg-slate-100 rounded-full overflow-hidden flex" id="distribution-stacked-bar">
+            <div id="bar-honors" style="width: 25%" class="bg-emerald-500" title="Honors >=80%"></div>
+            <div id="bar-proficient" style="width: 35%" class="bg-sky-500" title="Proficient 65-79%"></div>
+            <div id="bar-developing" style="width: 25%" class="bg-amber-400" title="Developing 50-64%"></div>
+            <div id="bar-at-risk" style="width: 15%" class="bg-rose-500" title="At Risk <50%"></div>
+          </div>
+
+          <!-- Legend Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+            <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100">
+              <div class="flex items-center gap-1.5 text-emerald-800 font-bold">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Honors (≥80%)
+              </div>
+              <div id="count-honors" class="text-lg font-bold text-emerald-900 mt-1">--</div>
+              <span id="pct-honors" class="text-[10px] text-emerald-600">--% of class</span>
+            </div>
+
+            <div class="p-2.5 rounded-lg bg-sky-50 border border-sky-100">
+              <div class="flex items-center gap-1.5 text-sky-800 font-bold">
+                <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span> Proficient (65-79%)
+              </div>
+              <div id="count-proficient" class="text-lg font-bold text-sky-900 mt-1">--</div>
+              <span id="pct-proficient" class="text-[10px] text-sky-600">--% of class</span>
+            </div>
+
+            <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-100">
+              <div class="flex items-center gap-1.5 text-amber-800 font-bold">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Developing (50-64%)
+              </div>
+              <div id="count-developing" class="text-lg font-bold text-amber-900 mt-1">--</div>
+              <span id="pct-developing" class="text-[10px] text-amber-600">--% of class</span>
+            </div>
+
+            <div class="p-2.5 rounded-lg bg-rose-50 border border-rose-100">
+              <div class="flex items-center gap-1.5 text-rose-800 font-bold">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Remedial (&lt;50%)
+              </div>
+              <div id="count-at-risk" class="text-lg font-bold text-rose-900 mt-1">--</div>
+              <span id="pct-at-risk" class="text-[10px] text-rose-600">--% of class</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trajectory Highlights Card -->
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs space-y-4">
+          <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i> Score Trajectory Momentum
+          </h3>
+
+          <div class="space-y-3">
+            <div>
+              <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wide">Top Improvers (+ momentum)</span>
+              <div id="teacher-top-improvers" class="mt-1.5 space-y-1 text-xs">
+                <div class="text-slate-400">Loading trends...</div>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100">
+              <span class="text-[11px] font-bold text-rose-700 uppercase tracking-wide">Declining Trajectories</span>
+              <div id="teacher-declining-students" class="mt-1.5 space-y-1 text-xs">
+                <div class="text-slate-400">Loading trends...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- At-Risk Students Action Table with Phone Quick-Dial -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2 text-rose-700">
+              <i data-lucide="alert-triangle" class="w-4 h-4"></i> Students Requiring Immediate Teacher Intervention
+            </h3>
+            <p class="text-xs text-slate-500">Students with low attendance (&lt;75%), failing exam scores (&lt;50%), or steep downward trajectory</p>
+          </div>
+          <span id="at-risk-badge-count" class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 text-xs font-bold">0 Alert Cases</span>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-slate-100">
+          <table class="w-full text-left text-xs min-w-[680px]">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px]">
+              <tr>
+                <th class="py-3 px-3">Roll No</th>
+                <th class="py-3 px-3">Student Name</th>
+                <th class="py-3 px-3">Direct Phone Contact</th>
+                <th class="py-3 px-3">Score %</th>
+                <th class="py-3 px-3">Attendance</th>
+                <th class="py-3 px-3">Trigger Reason</th>
+                <th class="py-3 px-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="at-risk-table-body" class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td colspan="7" class="py-6 text-center text-slate-400">Scanning for at-risk triggers...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- AI & Deterministic Classroom Advisory Card -->
+      <div class="bg-gradient-to-br from-slate-900 to-sky-950 rounded-xl p-5 text-white shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+            </span>
+            <div>
+              <h3 class="font-bold text-sm text-white">Classroom Pedagogical Diagnosis & Advisory</h3>
+              <p class="text-[11px] text-slate-300">Actionable curriculum guidance for the upcoming teaching week</p>
+            </div>
+          </div>
+          <span id="teacher-ai-source-badge" class="px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 text-[11px] font-semibold border border-sky-400/30">
+            Engine: Initializing
+          </span>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <span class="text-[11px] font-bold text-sky-300 uppercase tracking-wide">Cohort Assessment Summary</span>
+            <p id="teacher-ai-summary" class="text-xs text-slate-200 mt-1 leading-relaxed">
+              Generating classroom pedagogical analysis...
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div class="bg-white/5 rounded-lg p-3 border border-white/10 space-y-1.5">
+              <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
+                <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Targeted Pedagogical Interventions
+              </span>
+              <ul id="teacher-ai-interventions" class="text-xs text-slate-300 space-y-1.5 pl-3 list-disc">
+                <li>Analyzing curriculum difficulty patterns...</li>
+              </ul>
+            </div>
+
+            <div class="bg-white/5 rounded-lg p-3 border border-white/10 space-y-1.5">
+              <span class="text-[11px] font-bold text-sky-400 uppercase tracking-wide flex items-center gap-1.5">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Immediate Teacher Actions (Next Week)
+              </span>
+              <ul id="teacher-ai-actions" class="text-xs text-slate-300 space-y-1.5 pl-3 list-disc">
+                <li>Generating priority action items...</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 6: CONSOLIDATED BULK REPORTS & INDIVIDUAL PDF DOSSIERS -->
+    <!-- ===================================================================== -->
+    <div id="tab-analytics" class="tab-content hidden space-y-6">
+      
+      <!-- Bulk Selection & Filter Bar -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="p-1 rounded-md bg-indigo-50 text-indigo-600"><i data-lucide="files" class="w-5 h-5"></i></span>
+              <h2 class="text-base font-bold text-slate-900">Academic Reports & Consolidated Dossier Download</h2>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Filter by section, select one or multiple students, and download combined PDF dossiers</p>
+          </div>
+
+          <!-- Consolidated Bulk Download Action Button -->
+          <div class="flex items-center gap-2 w-full md:w-auto">
+            <button id="btn-download-bulk-pdf" onclick="downloadSelectedBulkPdf()" class="touch-btn text-xs font-bold px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-xs transition flex items-center gap-2 w-full md:w-auto justify-center">
+              <i data-lucide="file-down" class="w-4 h-4"></i>
+              <span>Download Consolidated PDF (<span id="bulk-selected-count">0</span>)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section Filter & Search for Student Selection -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 uppercase">Grade / Section</label>
+            <select id="reports-section-filter" onchange="filterReportsList()" class="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg outline-none font-semibold text-slate-800 bg-slate-50">
+              <option value="All">All Sections</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-[11px] font-bold text-slate-500 uppercase">Search by Roll No or Student Name</label>
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="text" id="reports-search-input" oninput="filterReportsList()" placeholder="Type student name or roll no (e.g. CS-101)..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg outline-none font-medium">
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Multi-Select Checklist Table -->
+        <div class="space-y-2">
+          <div class="flex justify-between items-center text-xs px-1">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="reports-select-all" onchange="toggleSelectAllReports(this.checked)" class="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500">
+              <label for="reports-select-all" class="font-bold text-slate-800 cursor-pointer">Select All Filtered Students</label>
+            </div>
+            <span id="reports-list-status" class="text-slate-500 text-[11px]">Showing all students</span>
+          </div>
+
+          <div class="overflow-x-auto rounded-lg border border-slate-200 max-h-72 overflow-y-auto">
+            <table class="w-full text-left text-xs min-w-[580px]">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase text-[11px] sticky top-0 z-10">
+                <tr>
+                  <th class="py-2.5 px-3 w-10 text-center">Select</th>
+                  <th class="py-2.5 px-3">Roll No</th>
+                  <th class="py-2.5 px-3">Student Name</th>
+                  <th class="py-2.5 px-3">Section</th>
+                  <th class="py-2.5 px-3">Attendance</th>
+                  <th class="py-2.5 px-3">Exam Avg</th>
+                  <th class="py-2.5 px-3 text-right">Individual Action</th>
+                </tr>
+              </thead>
+              <tbody id="reports-checklist-body" class="divide-y divide-slate-100 text-slate-700">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Single Student Preview & Detail Box (when selected) -->
+      <div id="analytics-details-wrapper" class="bg-white rounded-xl border border-slate-200 p-5 shadow-2xs space-y-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 id="view-student-name" class="text-lg font-bold text-slate-900">Student Diagnostics</h2>
+              <span id="view-student-roll" class="px-2 py-0.5 rounded bg-slate-100 font-mono text-xs text-slate-700 font-semibold">CS-101</span>
+              <span id="view-student-section" class="px-2 py-0.5 rounded bg-sky-100 text-sky-800 text-xs font-semibold">Section A</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
+              <span id="view-student-phone" class="flex items-center gap-1">📞 Student: --</span>
+              <span>•</span>
+              <span id="view-student-parent" class="flex items-center gap-1">👨‍👩‍👦 Parent: --</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 w-full md:w-auto">
+            <button id="btn-download-single-pdf" onclick="downloadSelectedStudentPdf()" class="touch-btn text-xs font-bold px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white shadow-xs transition flex items-center gap-1.5">
+              <i data-lucide="file-down" class="w-4 h-4"></i> Download Single PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 KPI Boxes -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <span class="text-slate-500 text-[10px] font-bold uppercase">Attendance Rate</span>
+            <div id="view-att-pct" class="text-xl font-bold text-emerald-600 mt-1">--%</div>
+            <span id="view-att-sessions" class="text-[10px] text-slate-400">0/0 sessions</span>
+          </div>
+
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <span class="text-slate-500 text-[10px] font-bold uppercase">Academic Average</span>
+            <div id="view-exam-avg" class="text-xl font-bold text-sky-700 mt-1">--%</div>
+            <span id="view-exam-count" class="text-[10px] text-slate-400">0 exams recorded</span>
+          </div>
+
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <span class="text-slate-500 text-[10px] font-bold uppercase">Score Trajectory</span>
+            <div id="view-trajectory" class="text-xl font-bold text-slate-800 mt-1">--%</div>
+            <span id="view-trajectory-sub" class="text-[10px] text-slate-400">Score progress</span>
+          </div>
+
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <span class="text-slate-500 text-[10px] font-bold uppercase">Section Percentile</span>
+            <div id="view-percentile" class="text-xl font-bold text-indigo-700 mt-1">--th</div>
+            <span id="view-percentile-sub" class="text-[10px] text-slate-400">Peer rank</span>
+          </div>
+        </div>
+
+        <!-- Qualitative Performance Diagnostics Card (Shows resolved layout) -->
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 sm:p-5 space-y-4">
+          <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+            <h3 class="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-sky-600"></i> Performance Diagnostics & Advisory
+            </h3>
+            <span id="view-diag-engine" class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-100 text-sky-800 uppercase">
+              Engine: Ready
+            </span>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div>
+              <span class="font-bold text-slate-700 uppercase text-[10px]">Academic Summary</span>
+              <p id="view-diag-summary" class="text-slate-600 mt-0.5 leading-relaxed">Select a student to load diagnostic assessment.</p>
+            </div>
+
+            <div>
+              <span class="font-bold text-emerald-800 uppercase text-[10px]">Key Strengths & Competencies</span>
+              <ul id="view-diag-strengths" class="mt-1 space-y-1 text-slate-600 list-disc pl-4">
+                <li>--</li>
+              </ul>
+            </div>
+
+            <div>
+              <span class="font-bold text-rose-800 uppercase text-[10px]">Identified Risk Factors</span>
+              <ul id="view-diag-risks" class="mt-1 space-y-1 text-slate-600 list-disc pl-4">
+                <li>--</li>
+              </ul>
+            </div>
+
+            <!-- Fixed Line Spacing Item in Preview -->
+            <div>
+              <span class="font-bold text-sky-800 uppercase text-[10px]">Actionable Advisory Recommendations</span>
+              <ul id="view-diag-recommendations" class="mt-1 space-y-2 text-slate-700 list-disc pl-4 leading-relaxed">
+                <li>--</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: NEW / EDIT STUDENT -->
+  <!-- ===================================================================== -->
+  <div id="modal-student" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-5 sm:p-6 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-base text-slate-900">Add New Student</h3>
+        <button onclick="closeNewStudentModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-new-student" onsubmit="handleSaveNewStudent(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Roll Number <span class="text-rose-500">*</span></label>
+          <input type="text" id="stu-roll" required placeholder="e.g. CS-106" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-mono font-medium focus:border-sky-500">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Full Student Name <span class="text-rose-500">*</span></label>
+          <input type="text" id="stu-name" required placeholder="e.g. Sarah Jenkins" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Student Phone Number</label>
+          <input type="tel" id="stu-phone" placeholder="e.g. +1 (555) 345-6789" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Parent / Guardian Name</label>
+            <input type="text" id="stu-parent-name" placeholder="e.g. Mark Jenkins" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Parent Phone Number</label>
+            <input type="tel" id="stu-parent-phone" placeholder="e.g. +1 (555) 987-6543" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Class / Section</label>
+          <input type="text" id="stu-section" placeholder="e.g. Section A" value="Section A" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeNewStudentModal()" class="touch-btn px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold">
+            Cancel
+          </button>
+          <button type="submit" class="touch-btn px-5 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-2xs">
+            Save Student
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: LOG A CALL & VIEW STUDENT CALL HISTORY -->
+  <!-- ===================================================================== -->
+  <div id="modal-call-log" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-xl w-full p-4 sm:p-6 space-y-4 max-h-[90vh] flex flex-col">
+      
+      <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center">
+              <i data-lucide="phone-call" class="w-4 h-4"></i>
+            </span>
+            <div>
+              <h3 class="font-bold text-base text-slate-900" id="call-modal-title">Record & History of Calls</h3>
+              <p class="text-xs text-slate-500" id="call-modal-subtitle">Student Contact Log</p>
+            </div>
+          </div>
+        </div>
+        <button onclick="closeCallModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick Call Dial Buttons -->
+      <div class="bg-sky-50/70 p-3 rounded-xl border border-sky-100 flex flex-wrap items-center justify-between gap-2">
+        <div class="text-xs font-semibold text-sky-900">Immediate Phone Dial:</div>
+        <div class="flex items-center gap-2" id="call-modal-dial-buttons">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Scrollable Call Content Area -->
+      <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+        
+        <!-- Form to Log a New Call -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+          <h4 class="font-bold text-xs text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-sky-600"></i> Log a New Conversation
+          </h4>
+
+          <form id="form-log-call" onsubmit="handleSaveCallLog(event)" class="space-y-2.5 text-xs">
+            <input type="hidden" id="call-student-id">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Contact Person <span class="text-rose-500">*</span></label>
+                <select id="call-contact-person" onchange="handleCallContactPersonChange()" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-semibold text-slate-800 bg-white">
+                  <option value="Parent/Guardian">Parent / Guardian</option>
+                  <option value="Student">Student Directly</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Date & Time of Call</label>
+                <input type="datetime-local" id="call-datetime" required class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium bg-white">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Target Phone Number</label>
+                <input type="tel" id="call-phone-number" placeholder="+1 ..." class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium bg-white">
+              </div>
+
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Call Outcome / Status</label>
+                <select id="call-outcome" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium text-slate-700 bg-white">
+                  <option value="Connected & Discussed">Connected & Discussed</option>
+                  <option value="Left Voicemail">Left Voicemail</option>
+                  <option value="No Answer / Busy">No Answer / Busy</option>
+                  <option value="Follow-up Scheduled">Follow-up Scheduled</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Subject of Call <span class="text-rose-500">*</span></label>
+              <input type="text" id="call-subject" required placeholder="e.g. Attendance decline check-in / Exam 2 preparation" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium bg-white focus:border-sky-500">
+            </div>
+
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Summary of Conversation <span class="text-rose-500">*</span></label>
+              <textarea id="call-summary" required rows="3" placeholder="Enter key points discussed, parent/student feedback, and agreed action milestones..." class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium bg-white focus:border-sky-500"></textarea>
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <div class="flex items-center gap-2">
+                <label class="font-semibold text-slate-600">Duration (mins):</label>
+                <input type="number" id="call-duration" value="5" min="1" max="180" class="w-16 px-2 py-1 border border-slate-300 rounded-md text-center font-medium bg-white">
+              </div>
+              <button type="submit" class="touch-btn text-xs font-semibold px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white shadow-2xs flex items-center gap-1">
+                <i data-lucide="save" class="w-3.5 h-3.5"></i> Save Call Log
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Previous Call History Timeline for Student -->
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <h4 class="font-bold text-xs text-slate-800 uppercase tracking-wide">Historical Call Records</h4>
+            <span id="call-history-count-badge" class="text-[11px] text-slate-500">0 calls logged</span>
+          </div>
+
+          <div id="call-history-timeline" class="space-y-2 text-xs">
+            <div class="text-slate-400 py-4 text-center">No calls recorded yet for this student.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="border-t border-slate-100 pt-3 flex justify-end">
+        <button onclick="closeCallModal()" class="touch-btn px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: NEW EXAM -->
+  <!-- ===================================================================== -->
+  <div id="modal-exam" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-5 sm:p-6 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-base text-slate-900">Create Assessment / Exam</h3>
+        <button onclick="closeNewExamModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-new-exam" onsubmit="handleSaveNewExam(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Exam Name <span class="text-rose-500">*</span></label>
+          <input type="text" id="exam-name" required placeholder="e.g. End-Term Comprehensive Exam" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Subject <span class="text-rose-500">*</span></label>
+          <input type="text" id="exam-subject" required placeholder="e.g. Data Structures & Algorithms" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Total Marks <span class="text-rose-500">*</span></label>
+            <input type="number" id="exam-total" required min="1" max="1000" value="100" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Exam Date <span class="text-rose-500">*</span></label>
+            <input type="date" id="exam-date" required class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none font-medium focus:border-sky-500">
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeNewExamModal()" class="touch-btn px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold">
+            Cancel
+          </button>
+          <button type="submit" class="touch-btn px-5 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-2xs">
+            Create Exam
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: DATA TOOLS & GITHUB PAGES EXPORT/IMPORT -->
+  <!-- ===================================================================== -->
+  <div id="modal-data-tools" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-5 sm:p-6 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <i data-lucide="database" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-900">Data Management & GitHub Pages</h3>
+            <p class="text-[11px] text-slate-500">Export, backup, and restore student records</p>
+          </div>
+        </div>
+        <button onclick="closeDataToolsModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div class="p-3 bg-sky-50 rounded-xl border border-sky-100 text-sky-900 space-y-1">
+          <span class="font-bold flex items-center gap-1.5"><i data-lucide="info" class="w-4 h-4"></i> GitHub Pages Portability</span>
+          <p class="text-[11px] leading-relaxed text-sky-800">
+            This app operates in full dual-mode. It connects to the live backend server when available, and runs 100% client-side with full offline storage and browser PDF generation when deployed directly to GitHub Pages.
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <h4 class="font-bold text-slate-800 uppercase text-[10px] tracking-wide">Backup & Export</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button onclick="exportDataJson()" class="touch-btn text-xs font-semibold px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg border border-slate-200 flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="download" class="w-4 h-4"></i> Export All Data (JSON)
+            </button>
+            <label class="touch-btn text-xs font-semibold px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg border border-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer">
+              <i data-lucide="upload" class="w-4 h-4"></i> Import Data (JSON)
+              <input type="file" id="json-import-input" accept=".json" onchange="importDataJson(event)" class="hidden">
+            </label>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <h4 class="font-bold text-slate-800 uppercase text-[10px] tracking-wide">Sample Data & Reset</h4>
+          <button onclick="resetToSampleClassroom()" class="touch-btn w-full text-xs font-semibold px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg border border-amber-200 flex items-center justify-center gap-1.5 transition">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Reset to Sample Classroom Data
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 pt-3 flex justify-end">
+        <button onclick="closeDataToolsModal()" class="touch-btn px-4 py-2 rounded-lg bg-slate-800 text-white font-semibold text-xs">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC SCRIPT -->
+  <script src="assets/app.js"></script>
+  <script>
+    // Lucide initialization trigger
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

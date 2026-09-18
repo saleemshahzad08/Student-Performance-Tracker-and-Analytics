@@ -1,0 +1,6 @@
+{
+  "name": "Student Performance Tracker & Analytics",
+  "description": "Mobile-responsive student performance tracking, parent/student phone dialing and call logging, teacher class analytics, and consolidated PDF reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
