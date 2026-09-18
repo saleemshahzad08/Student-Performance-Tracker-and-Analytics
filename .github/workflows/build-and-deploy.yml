@@ -44,7 +44,7 @@ jobs:
       - name: Build Android Release & Debug APKs
         working-directory: android
         run: |
-          gradle assembleRelease --stacktrace || gradle assembleDebug --stacktrace
+          gradle assembleRelease -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true --stacktrace || gradle assembleDebug -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true --stacktrace
           mkdir -p ../dist-apk
           find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../dist-apk/student-tracker.apk \;
 
