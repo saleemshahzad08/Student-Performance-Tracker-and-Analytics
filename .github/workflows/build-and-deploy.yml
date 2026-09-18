@@ -41,12 +41,41 @@ jobs:
           cp -r assets/* android/app/src/main/assets/assets/
           ls -la android/app/src/main/assets/assets/
 
-      - name: Build Android Release & Debug APKs
+      - name: Generate Gradle Wrapper if Missing
         working-directory: android
         run: |
-          gradle assembleRelease -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true --stacktrace || gradle assembleDebug -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true --stacktrace
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper --gradle-version 8.5 || true
+          fi
+
+      - name: Build Android APK
+        working-directory: android
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+            ./gradlew :app:assembleRelease \
+              -Pandroid.useAndroidX=true \
+              -Pandroid.enableJetifier=true \
+              --no-daemon \
+              --console=plain \
+              --stacktrace \
+              --info
+          else
+            gradle :app:assembleRelease \
+              -Pandroid.useAndroidX=true \
+              -Pandroid.enableJetifier=true \
+              --no-daemon \
+              --console=plain \
+              --stacktrace \
+              --info
+          fi
+
           mkdir -p ../dist-apk
-          find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../dist-apk/student-tracker.apk \;
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            cp app/build/outputs/apk/release/app-release.apk ../dist-apk/student-tracker.apk
+          else
+            find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../dist-apk/student-tracker.apk \;
+          fi
 
       - name: Upload APK as Workflow Artifact
         uses: actions/upload-artifact@v4
