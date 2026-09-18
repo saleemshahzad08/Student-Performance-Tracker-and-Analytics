@@ -6,12 +6,15 @@
   <title>Student Performance Tracker & Analytics</title>
   <meta name="description" content="Responsive student tracking, communication logs, teacher class intelligence, and consolidated PDF reporting.">
   
-  <!-- Tailwind CSS via CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- jsPDF for direct client-side PDF generation on GitHub Pages & offline fallback -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- Tailwind CSS (Local with CDN fallback for offline Android APK / GitHub Pages) -->
+  <script src="assets/tailwind.js"></script>
+  <script>if (!window.tailwind) document.write('<script src="https://cdn.tailwindcss.com"><\/script>');</script>
+  <!-- Lucide Icons (Local with CDN fallback) -->
+  <script src="assets/lucide.js"></script>
+  <script>if (!window.lucide) document.write('<script src="https://unpkg.com/lucide@latest"><\/script>');</script>
+  <!-- jsPDF (Local with CDN fallback for 100% offline PDF generation) -->
+  <script src="assets/jspdf.umd.min.js"></script>
+  <script>if (!window.jspdf) document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>');</script>
   
   <script>
     tailwind.config = {
@@ -1159,9 +1162,9 @@
 
       <div class="space-y-4 text-xs">
         <div class="p-3 bg-sky-50 rounded-xl border border-sky-100 text-sky-900 space-y-1">
-          <span class="font-bold flex items-center gap-1.5"><i data-lucide="info" class="w-4 h-4"></i> GitHub Pages Portability</span>
+          <span class="font-bold flex items-center gap-1.5"><i data-lucide="smartphone" class="w-4 h-4 text-sky-700"></i> Android Phone App & GitHub Pages</span>
           <p class="text-[11px] leading-relaxed text-sky-800">
-            This app operates in full dual-mode. It connects to the live backend server when available, and runs 100% client-side with full offline storage and browser PDF generation when deployed directly to GitHub Pages.
+            This app is 100% offline-ready with zero external API dependencies. All student rosters, exams, marks, attendance, calls, and PDF generation run natively on your device. The GitHub Actions workflow automatically builds your standalone Android <strong>.apk</strong> and deploys the live GitHub Pages website simultaneously on every push.
           </p>
         </div>
 

@@ -29,19 +29,33 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function detectBackendAndInit() {
-  try {
-    const res = await fetch('/api/health', { signal: AbortSignal.timeout(3000) });
-    if (res.ok) {
-      state.isBackendAvailable = true;
-      document.getElementById('runtime-mode-text').textContent = 'Backend Active';
-      document.getElementById('runtime-mode-badge').className = 'inline-flex items-center gap-1 text-emerald-600 font-semibold';
-    } else {
-      throw new Error('Non-200 health response');
-    }
-  } catch (err) {
+  const isAndroidNative = window.Android || navigator.userAgent.includes('wv') || window.location.protocol === 'file:';
+
+  if (isAndroidNative) {
     state.isBackendAvailable = false;
-    document.getElementById('runtime-mode-text').textContent = 'GitHub Pages Mode (Local Data)';
-    document.getElementById('runtime-mode-badge').className = 'inline-flex items-center gap-1 text-sky-600 font-semibold';
+    const modeText = document.getElementById('runtime-mode-text');
+    const modeBadge = document.getElementById('runtime-mode-badge');
+    if (modeText) modeText.textContent = 'Android Standalone App (100% Offline)';
+    if (modeBadge) modeBadge.className = 'inline-flex items-center gap-1 text-emerald-600 font-semibold';
+  } else {
+    try {
+      const res = await fetch('/api/health', { signal: AbortSignal.timeout(1500) });
+      if (res.ok) {
+        state.isBackendAvailable = true;
+        const modeText = document.getElementById('runtime-mode-text');
+        const modeBadge = document.getElementById('runtime-mode-badge');
+        if (modeText) modeText.textContent = 'Backend Active';
+        if (modeBadge) modeBadge.className = 'inline-flex items-center gap-1 text-emerald-600 font-semibold';
+      } else {
+        throw new Error('Non-200 health response');
+      }
+    } catch (err) {
+      state.isBackendAvailable = false;
+      const modeText = document.getElementById('runtime-mode-text');
+      const modeBadge = document.getElementById('runtime-mode-badge');
+      if (modeText) modeText.textContent = 'Offline / Local Data Mode';
+      if (modeBadge) modeBadge.className = 'inline-flex items-center gap-1 text-sky-600 font-semibold';
+    }
   }
 
   if (!state.isBackendAvailable) {
